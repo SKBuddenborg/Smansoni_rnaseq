@@ -1,0 +1,12 @@
+# Mapping
+
+Author: Sarah Buddenborg, skb[at]sanger.ac.uk
+
+## Contents
+- Project setup
+- Prepare reference genome
+- Raw sequence data
+- Metadata
+- Trimming of the raw reads
+- Merge bam file from multiple lanes
+- Mapping
