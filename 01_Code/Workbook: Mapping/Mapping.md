@@ -14,7 +14,7 @@ Author: Sarah Buddenborg, skb[at]sanger.ac.uk
 ## Project setup
 
 ```bash
-# working directory
+# Set working directory
 cd /lustre/scratch118/infgen/team333/skb/Smansoni_rnaseq
 WORKING_DIR=/lustre/scratch118/infgen/team333/skb/Smansoni_rnaseq
 
@@ -23,7 +23,6 @@ mkdir 00_SCRIPTS  01_REF  02_RAW  03_TRIMMING  04_MAPPING  05_ANALYSIS
 
 ## Prepare reference genome
 ```bash
-
 # Make STAR genome index for Mapping
 cd ${WORKING_DIR}/01_REF
 STAR --runMode genomeGenerate --runThreadN 6 --genomeDir /lustre/scratch118/infgen/team333/skb/Smansoni_rnaseq/01_REF --genomeFastaFiles /nfs/users/nfs_s/skb/ENA/SM_V9_ENA.fa --sjdbGTFfile /nfs/users/nfs_s/skb/SM_V9_16Mar.gtf --genomeSAindexNbases 10 --limitGenomeGenerateRAM 90000000000'
@@ -35,7 +34,7 @@ STAR --runMode genomeGenerate --runThreadN 6 --genomeDir /lustre/scratch118/infg
 ```bash
 cd ${WORKING_DIR}/02_RAW
 pf data -t study -i 5837 --symlink
-
+```
 ---
 
 ## Metadata
