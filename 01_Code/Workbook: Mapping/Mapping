@@ -1,0 +1,47 @@
+# Mapping
+
+Author: Sarah Buddenborg, skb[at]sanger.ac.uk
+
+## Contents
+- Project setup
+- Prepare reference genome
+- Raw sequence data
+- Metadata
+- Trimming of the raw reads
+- Merge bam file from multiple lanes
+- Mapping
+
+## Project setup
+
+```bash
+# working directory
+cd /lustre/scratch118/infgen/team333/skb/Smansoni_rnaseq
+WORKING_DIR=/lustre/scratch118/infgen/team333/skb/Smansoni_rnaseq
+
+mkdir 00_SCRIPTS  01_REF  02_RAW  03_TRIMMING  04_MAPPING  05_ANALYSIS
+```
+
+## Prepare reference genome
+```bash
+
+# Make STAR genome index for Mapping
+cd ${WORKING_DIR}/01_REF
+STAR --runMode genomeGenerate --runThreadN 6 --genomeDir /lustre/scratch118/infgen/team333/skb/Smansoni_rnaseq/01_REF --genomeFastaFiles /nfs/users/nfs_s/skb/ENA/SM_V9_ENA.fa --sjdbGTFfile /nfs/users/nfs_s/skb/SM_V9_16Mar.gtf --genomeSAindexNbases 10 --limitGenomeGenerateRAM 90000000000'
+```
+
+## Raw sequencing data
+- Sequencing was performed at the Wellcome Sanger Institute, Hinxton UK
+- Raw sequencing data was symlink'd to the lustre environment into the directory 02_RAW
+```bash
+cd ${WORKING_DIR}/02_RAW
+pf data -t study -i 5837 --symlink
+
+---
+
+## Metadata
+- Googlesheet: https://docs.google.com/spreadsheets/d/1w-RX5himr6UNS5NTCBAQsxYM-q2qdkcL/edit#gid=1245866365
+
+---
+## Trimming of raw reads
+```bash
+cd ${WORKING_DIR}/03_TRIMMING
