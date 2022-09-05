@@ -1,0 +1,105 @@
+---
+title: "Analysis of Schistosoma mansoni bulk RNAseq"
+author: "Sarah Kay Buddenborg"
+output: html_document
+---
+
+# Install and load packages we will use
+```{r}
+if (!require("BiocManager", quietly = TRUE)) install.packages("BiocManager")
+BiocManager::install('DESeq2')
+BiocManager::install('PCAtools')
+BiocManager::install('pheatmap')
+BiocManager::install('RColorBrewer')
+BiocManager::install('gplots')
+BiocManager::install('ggplot2')
+BiocManager::install('vsn')
+
+library(DESeq2)
+library(PCAtools)
+library(ggplot2)
+library(pheatmap)
+library(RColorBrewer)
+library(gplots)
+library(vsn)
+```
+
+# Set working directory and variables for htseq-count input
+```{r}
+directory <- ('/Users/skb/Desktop/Smansoni_rnaseq/HTSeq')
+sampleFiles <- grep ("htseq.o", list.files(directory),value=TRUE)
+sampleCondition <- gsub("_R.htseq.o","",sampleFiles)
+sampleSex <- 
+sampleTable <- data.frame(sampleName=sampleFiles,
+                          fileName=sampleFiles,
+                          condition=sampleCondition)
+sampleTable
+```
+
+# Build the DESeqDataSet
+# Pre-filter low count genes (<10 reads in all samples)
+```{r}
+keep <- rowSums(counts(ddsHTSeq)) >= 10
+dds <- ddsHTSeq[keep,]
+dds$condition <- factor(dds$condition, levels = (unique(sampleCondition)))
+```
+
+# Generate DESeq results table for all groups with FDR cutoff of 0.05
+```{r}
+dds <- DESeq(dds, contrast=c("condition"))
+res05 <- results(dds,alpha=0.05)
+```
+
+# Generate DESeq results tables for the pairwise sex-based comparison groups
+```{r}
+sporos <- results(dds,contrast=c("condition","F_32d_Sporocysts","M_32d_Sporocysts"))
+cercs <- results(dds,contrast=c("condition","F_Cercariae","M_Cercariae"))
+soms <- results(dds,contrast=c("condition","F_2d_Somules","M_2d_Somules"))
+juvs <- results(dds,contrast=c("condition","F_26d_juveniles","M_26d_juveniles"))
+```
+
+# Count data transformation for visualization of data
+ntd <- normTransform(dds)
+vsd <- vst(dds, blind=FALSE)
+rld <- rlog(dds, blind=FALSE)
+meanSdPlot(assay(ntd))
+meanSdPlot(assay(vsd))
+meanSdPlot(assay(rld))
+
+
+# Heatmap of the count matrix
+select <- order(rowMeans(counts(dds,normalized=TRUE)),
+                decreasing=TRUE)[1:20]
+df <- as.data.frame(colData(dds)[,c("condition","type")])
+pheatmap(assay(ntd)[select,], cluster_rows=FALSE, show_rownames=FALSE,
+         cluster_cols=FALSE, annotation_col=df)
+
+
+# Heatmap of the sample-to-sample distances
+sampleDists <- dist(t(assay(vsd)))
+sampleDistMatrix <- as.matrix(sampleDists)
+rownames(sampleDistMatrix) <- paste(vsd$condition, vsd$type, sep="-")
+colnames(sampleDistMatrix) <- NULL
+colors <- colorRampPalette( rev(brewer.pal(9, "Blues")) )(255)
+pheatmap(sampleDistMatrix,
+         clustering_distance_rows=sampleDists,
+         clustering_distance_cols=sampleDists,
+         col=colors)
+
+# PCA plot of the samples
+pcaData <- plotPCA(vsd, intgroup=c("condition"), returnData=TRUE)
+percentVar <- round(100 * attr(pcaData, "percentVar"))
+ggplot(pcaData, aes(PC1, PC2, color=condition, shape=type)) +
+  geom_point(size=3) +
+  xlab(paste0("PC1: ",percentVar[1],"% variance")) +
+  ylab(paste0("PC2: ",percentVar[2],"% variance")) +
+  coord_fixed()
+
+
+
+library('DESeq2')
+dds<-DESeqDataSet(rnaseq)
+dds<-DESeq(dds)
+vst<-assay(vst(dds))
+
+p <- pca(vst, metadata = colData(rnaseq), removeVar = 0.1)
