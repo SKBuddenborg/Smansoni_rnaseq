@@ -1,8 +1,12 @@
 ---
-title: "Analysis of Schistosoma mansoni bulk RNAseq"
-author: "Sarah Kay Buddenborg"
-output: output=github_document
+title: "Differential_expression"
+author: "Sarah Kay Buddenborg skb[at]sanger.ac.uk"
+output: github_document
 ---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
 # Install and load packages we will use
 ```{r}
@@ -29,30 +33,34 @@ library(vsn)
 directory <- ('/Users/skb/Desktop/Smansoni_rnaseq/HTSeq')
 sampleFiles <- grep ("htseq.o", list.files(directory),value=TRUE)
 sampleCondition <- gsub("_R.htseq.o","",sampleFiles)
+sampleSex <-
 sampleTable <- data.frame(sampleName=sampleFiles,
                           fileName=sampleFiles,
                           condition=sampleCondition)
+sampleTable
 ```
 
 # Build the DESeqDataSet
-```{r}
-ddsHTSeq <- DESeqDataSetFromHTSeqCount (sampleTable=sampleTable,
-                                        directory=directory,
-                                        design=~condition)
-```
-
 # Pre-filter low count genes (<10 reads in all samples)
 ```{r}
 keep <- rowSums(counts(ddsHTSeq)) >= 10
 dds <- ddsHTSeq[keep,]
+dds$condition <- factor(dds$condition, levels = (unique(sampleCondition)))
+```
 
-
+# Generate DESeq results table for all groups with FDR cutoff of 0.05
+```{r}
 dds <- DESeq(dds, contrast=c("condition"))
-res <- results(dds)
-res
+res05 <- results(dds,alpha=0.05)
+```
 
-#results(dds, contrast=c("condition","C","B"))
-
+# Generate DESeq results tables for the pairwise sex-based comparison groups
+```{r}
+sporos <- results(dds,contrast=c("condition","F_32d_Sporocysts","M_32d_Sporocysts"))
+cercs <- results(dds,contrast=c("condition","F_Cercariae","M_Cercariae"))
+soms <- results(dds,contrast=c("condition","F_2d_Somules","M_2d_Somules"))
+juvs <- results(dds,contrast=c("condition","F_26d_juveniles","M_26d_juveniles"))
+```
 
 # Count data transformation for visualization of data
 ntd <- normTransform(dds)
