@@ -1,7 +1,7 @@
 ---
 title: "Differential_expression"
 author: "Sarah Kay Buddenborg skb[at]sanger.ac.uk"
-output: github_html
+output: github_document
 ---
 
 ```{r setup, include=FALSE}
