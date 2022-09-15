@@ -1,0 +1,44 @@
+
+------------------------------------------------------------
+Sender: LSF System <lsfadmin@node-13-18>
+Subject: Job 465944: <M_2d_Somules_R1htseq> in cluster <farm5> Exited
+
+Job <M_2d_Somules_R1htseq> was submitted from host <farm5-head2> by user <skb> in cluster <farm5> at Tue Sep 13 10:52:26 2022
+Job was executed on host(s) <4*node-13-18>, in queue <normal>, as user <skb> in cluster <farm5> at Tue Sep 13 10:52:27 2022
+</nfs/users/nfs_s/skb> was used as the home directory.
+</lustre/scratch118/infgen/team333/skb/Smansoni_rnaseq/05_ANALYSIS> was used as the working directory.
+Started at Tue Sep 13 10:52:27 2022
+Terminated at Tue Sep 13 22:52:41 2022
+Results reported at Tue Sep 13 22:52:41 2022
+
+Your job looked like:
+
+------------------------------------------------------------
+# LSBATCH: User input
+htseq-count -f bam -r pos -s no -m intersection-nonempty --nonunique=all -t exon -i gene_id /lustre/scratch118/infgen/team333/skb/Smansoni_rnaseq/04_MAPPING/merged_bams/M_2d_Somules_R1_Aligned.sortedByCoord.merged.bam /lustre/scratch118/infgen/team333/skb/Smansoni_rnaseq/01_REF/SM_V9_31Aug21.gtf
+------------------------------------------------------------
+
+TERM_RUNLIMIT: job killed after reaching LSF run time limit.
+Exited with signal termination: 19.
+
+Resource usage summary:
+
+    CPU time :                                   4049.00 sec.
+    Max Memory :                                 983 MB
+    Average Memory :                             481.50 MB
+    Total Requested Memory :                     100000.00 MB
+    Delta Memory :                               99017.00 MB
+    Max Swap :                                   -
+    Max Processes :                              5
+    Max Threads :                                13
+    Run time :                                   43210 sec.
+    Turnaround time :                            43215 sec.
+
+The output (if any) is above this job summary.
+
+
+
+PS:
+
+Read file <M_2d_Somules_R1htseq.e> for stderr output of this job.
+
