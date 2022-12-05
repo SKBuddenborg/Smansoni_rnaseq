@@ -28,30 +28,59 @@ library(gplots)
 library(vsn)
 ```
 
+#sampleSex <- substr(sampleCondition, 1, 1)
+#sampleTableSex <- data.frame(sampleName=sampleName,
+#                             fileName=sampleFiles,
+#                             condition=sampleSex)
+
+
 # Set working directory and variables for htseq-count input
 ```{r}
-directory <- ('/Users/skb/Desktop/Smansoni_rnaseq/HTSeq')
-sampleFiles <- grep ("htseq.o", list.files(directory),value=TRUE)
-sampleCondition <- gsub("_R.htseq.o","",sampleFiles)
-sampleSex <-
+directory <- ('/Users/skb/Desktop/Smansoni_rnaseq')
+sampleFiles <- grep ("_fixhtseq.o", list.files(directory),value=TRUE)
+sampleCondition <- gsub("_R._fixhtseq.o","",sampleFiles)
 sampleTable <- data.frame(sampleName=sampleFiles,
-                          fileName=sampleFiles,
-                          condition=sampleCondition)
-sampleTable
+                         fileName=sampleFiles,
+                         condition=sampleCondition)
+
+sampleTable$condition <- factor(sampleTable$condition)
+
 ```
 
 # Build the DESeqDataSet
+```{r}
+ddsHTSeq <- DESeqDataSetFromHTSeqCount(sampleTable = sampleTable,
+                                      directory = directory,
+                                      design = ~condition)
+ddsHTSeq
+```
+
 # Pre-filter low count genes (<10 reads in all samples)
 ```{r}
 keep <- rowSums(counts(ddsHTSeq)) >= 10
-dds <- ddsHTSeq[keep,]
-dds$condition <- factor(dds$condition, levels = (unique(sampleCondition)))
+ddsHTSeq <- ddsHTSeq[keep,]
+
+library("pheatmap")
+select <- order(rowMeans(counts(ddsHTSeq,normalized=TRUE)),decreasing=TRUE)[1:20]
+
+ddsHTSeq$condition <- factor(ddsHTSeq$condition, levels = (unique(sampleCondition)))
 ```
 
 # Generate DESeq results table for all groups with FDR cutoff of 0.05
 ```{r}
-dds <- DESeq(dds, contrast=c("condition"))
-res05 <- results(dds,alpha=0.05)
+dds$eggmira <- factor (ddsHTSeq$condition, levels=c("X_Eggs","X_Miracidia"))
+dds$mira1spor <- factor (ddsHTSeq$condition, levels=c("X_Miracidia","X_1d_Sporocysts"))
+dds$spor5spor <- factor (ddsHTSeq$condition, levels=c("X_1d_Sporocysts","X_5d_Sporocysts"))
+dds$spor32spor <- factor (ddsHTSeq$condition, levels=c("X_5d_Sporocysts","X_32d_Sporocysts"))
+dds$sporcerc <- factor (ddsHTSeq$condition, levels=c("X_32d_Sporocysts","X_Cercariae"))
+dds$cercsom <- factor (ddsHTSeq$condition, levels=c("X_Cercariae","X_2d_Somules"))
+dds$somjuv <- factor (ddsHTSeq$condition, levels=c("X_2d_Somules","X_26d_juveniles"))
+
+
+
+ddsHTSeq <- DESeq(ddsHTSeq)
+
+res05 <- results(ddsHTSeq,alpha=0.05)
 ```
 
 # Generate DESeq results tables for the pairwise sex-based comparison groups
