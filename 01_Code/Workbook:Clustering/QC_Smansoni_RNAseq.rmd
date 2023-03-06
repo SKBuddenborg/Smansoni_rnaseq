@@ -1,0 +1,384 @@
+---
+title: "QC Schistosoma mansoni RNASeq"
+author: "Sarah Kay Buddenborg"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Prepare environment
+
+```{r environment, warning=FALSE, message=FALSE, results=FALSE}
+if (!requireNamespace('BiocManager', quietly = TRUE))
+  install.packages('BiocManager')
+
+BiocManager::install("tidyverse", force = TRUE)
+BiocManager::install("ggplot2", force = TRUE)
+BiocManager::install("viridis", force = TRUE)
+BiocManager::install("DESeq2", force = TRUE)
+BiocManager::install("pheatmap", force = TRUE)
+BiocManager::install("RColorBrewer", force = TRUE)
+BiocManager::install("gplots", force = TRUE)
+BiocManager::install("edgeR", force = TRUE)
+BiocManager::install("debrowser", force = TRUE)
+install.packages("devtools")
+devtools::install_github("pachterlab/sleuth")
+
+library(tidyverse)
+library(ggplot2)
+library(viridis)
+library(DESeq2)
+library(pheatmap)
+library(RColorBrewer)
+library(gplots)
+library(ggplot2)
+library(sleuth)
+```
+
+## PCA plot of all samples from STAR mapped reads quantified to TPMs using StringTie
+
+Following [https://tavareshugo.github.io/data-carpentry-rnaseq/00_exercises.html#31_examine_prcomp()](https://tavareshugo.github.io/data-carpentry-rnaseq/00_exercises.html#31_examine_prcomp())
+
+```{r}
+# Load the count matrix
+pca <- read_tsv("~/Desktop/STAR_stringtie/TPM_matrix.txt") %>%
+# Add one to all TPM values to avoid #NA values
+  mutate(across(where(is.numeric),~ .x + 1)) %>%
+# Log-transform the TPM+1 values
+  mutate(across(where(is.numeric),log2)) %>%
+# Transpose the counts table so the "gene" column becomes the rownames
+  column_to_rownames("gene") %>%
+# Coerce into a matrix
+  as.matrix() %>%
+# Transpose the matrix so that rows=samples and columns=variables
+  t()
+```
+
+Check for #N/A and non-numeric values:
+```{r}
+all(is.finite(pca))
+```
+
+Perform the PCA:
+```{r}
+sample_pca <- prcomp(pca)
+```
+
+Check output of prcomp:
+```{r}
+pca[1:10, 1:5]
+```
+
+Class of the object:
+```{r}
+class(sample_pca)
+```
+
+Structure of the object:
+```{r}
+str(sample_pca)
+```
+
+"sdev" contains the standard deviation explained by each PC, so if we square it we get the eigenvalues (or explained variance)
+"rotation" contains the variable loadings for each PC, which define the eigenvectors
+"x" contains the PC scores, i.e. the data projected on the new PC axis
+"center" in this case contains the mean of each gene, which was subtracted from each value
+"scale" contains the value FALSE because we did not scale the data by the standard deviation
+
+eigenvalues squared:
+```{r}
+pc_eigenvalues <- sample_pca$sdev^2
+```
+
+PC scores:
+```{r}
+pc_scores <- sample_pca$x
+```
+
+Variable loadings:
+```{r}
+pc_loadings <- sample_pca$rotation
+ncol(pc_scores)
+length(pc_eigenvalues)
+ncol(pc_loadings)
+```
+
+
+Convert matrix to tibble object in order to make a plot in ggplot2:
+  Add a new column with the percent variance
+  Add another column with the cumulative variance explained
+```{r}
+#  Create a "tibble" manually with a variable indicating the PC number and a variable with the variances
+pc_eigenvalues <- tibble(PC = factor(1:length(pc_eigenvalues)), 
+                         variance = pc_eigenvalues) %>% 
+  mutate(pct = variance/sum(variance)*100) %>% 
+  mutate(pct_cum = cumsum(pct))
+```
+
+Print the result:
+
+```{r}
+pc_eigenvalues
+```
+
+
+Produce a Scree plot to show the fraction of the total variance explained by each PC:
+```{r}
+scree <- pc_eigenvalues %>% 
+  ggplot(aes(x = PC)) +
+  geom_col(aes(y = pct)) +
+  geom_line(aes(y = pct_cum, group = 1)) + 
+  geom_point(aes(y = pct_cum)) +
+  labs(x = "Principal component", y = "Fraction variance explained")
+```
+
+Save Scree plot
+```{r}
+scree_plot
+ggsave("~/Desktop/Smansoni_rnaseq/02_ANALYSIS/scree_plot.pdf", height=7, width=7, units="in")
+```
+
+The PC scores are stored in the "x" value of the prcomp object:
+
+```{r}
+pc_scores <- sample_pca$x
+```
+
+Convert to a tibble retaining the sample names as a new column:
+
+```{r}
+pc_scores <- pc_scores %>% 
+  as_tibble(rownames = "sample")
+```
+
+Print the result:
+
+```{r}
+pc_scores
+```
+
+Load sample info i.e. metadata:
+
+```{r}
+sample_info <- read_tsv("~/Desktop/STAR_stringtie/sample_info.txt")
+```
+
+Extract the loadings from prcomp
+Convert to a tibble retaining the sample names as a new column
+Join with "sample_info" table
+Create the plot
+
+```{r}
+pca_plot <- sample_pca$x %>% 
+  as_tibble(rownames = "sample") %>% 
+  full_join(sample_info, by = "sample") %>% 
+  ggplot(aes(x=PC1, y=PC2)) +
+  geom_point(aes(colour=stage,shape=sex,alpha=20),size=5) +
+  scale_colour_discrete(breaks=c("Eggs","Miracidia","1d_Sporocysts","5d_Sporocysts","32d_Sporocysts","Cercariae","2d_Somules","Juveniles")) +
+  labs(y="PC2 (23.7%)",x="PC1 (36.6%)") +
+  theme (panel.grid.major=element_blank(),
+         panel.grid.minor=element_blank(),
+         panel.background=element_blank(),
+         legend.key = element_blank(),
+         axis.line = element_line(colour = "gray")) +
+  scale_alpha(guide = 'none')
+```
+
+Save the PCA plot:
+
+```{r}
+pca_plot
+ggsave("~/Desktop/Smansoni_rnaseq/02_ANALYSIS/PCA_plot.pdf", height=7, width=7, units="in")
+```
+
+Which genes have the most influence on each PC axis
+```{r}
+pc_loadings <- sample_pca$rotation
+pc_loadings <- pc_loadings %>% 
+  as_tibble(rownames = "gene")
+
+pc_loadings
+```
+
+What are the top 10 genes with highest loading on PC1 and PC2
+```{r}
+slice <- dplyr::slice
+top_genes <- pc_loadings %>% 
+  # select only the PCs we are interested in
+  select(gene, PC1, PC2) %>%
+  # convert to a "long" format
+  pivot_longer(matches("PC"), names_to = "PC", values_to = "loading") %>% 
+  # for each PC
+  group_by(PC) %>% 
+  # arrange by descending order of loading
+  arrange(desc(abs(loading))) %>% 
+  # take the 10 top rows
+  slice(1:10) %>% 
+  # pull the gene column as a vector
+  pull(gene)
+
+
+top_genes
+top_loadings <- pc_loadings %>% 
+  filter(gene %in% top_genes)
+```
+
+Visualise variable loadings
+
+```{r}
+loadings_plot <- ggplot(data = top_loadings) +
+  geom_segment(aes(x = 0, y = 0, xend = PC1, yend = PC2), 
+               arrow = arrow(length = unit(0.1, "in")),
+               colour = "brown") +
+  geom_text(aes(x = PC1, y = PC2, label = gene),
+            nudge_y = 0.005, size = 3) +
+  scale_x_continuous(expand = c(0.02, 0.02))
+loadings_plot
+ggsave("~/Desktop/Smansoni_rnaseq/02_ANALYSIS/loadings_plot.pdf", height=7, width=7, units="in")
+```
+
+## PCA of highly variable genes
+Following https://jdblischak.github.io/singlecell-qtl/pca-variable.html
+```{r}
+library("cowplot")
+library("debrowser")
+library("dplyr")
+library("DT")
+library("edgeR")
+library("knitr")
+theme_set(theme_cowplot())
+library("Biobase")
+
+logTPM <- read_tsv("~/Desktop/STAR_stringtie/TPM_matrix.txt") %>%
+  mutate(across(where(is.numeric),~ .x + 1)) %>%
+  mutate(across(where(is.numeric),log2)) %>%
+  column_to_rownames("gene") %>%
+  as.matrix()
+
+#Calculate coefficient of variation
+compute_cv <- function(x) sd(x) / mean(x)
+cv <- apply(logTPM, 1, compute_cv)
+summary(cv)
+```
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+0.03045 0.14035 0.22741 0.47041 0.54638 8.56243 
+
+Select 25% of genes with highest CV
+```{r}
+cutoff <- 0.25
+summary(cv[rank(cv) / length(cv) > 1 - cutoff])
+```
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+ 0.5464  0.6942  0.9492  1.2455  1.4345  8.5624 
+
+```{r}
+variable <- logTPM[rank(cv) / length(cv) > 1 - cutoff, ]
+dim(variable)
+```
+[1] 2475   75
+
+# PCA using the 25% most variable genes
+```{r}
+var_mat <- t(variable)
+var_pca <- prcomp(var_mat)
+class(var_pca)
+str(var_pca)
+varpc_eigenvalues <- var_pca$sdev^2
+varpc_scores <- var_pca$x
+varpc_loadings <- var_pca$rotation
+ncol(varpc_scores)
+length(varpc_eigenvalues)
+ncol(varpc_loadings)
+
+varpc_eigenvalues <- tibble(PC = factor(1:length(varpc_eigenvalues)), 
+                         variance = varpc_eigenvalues) %>% 
+  mutate(pct = variance/sum(variance)*100) %>% 
+  mutate(pct_cum = cumsum(pct))
+
+varpc_eigenvalues
+
+varscree <- varpc_eigenvalues %>% 
+  ggplot(aes(x = PC)) +
+  geom_col(aes(y = pct)) +
+  geom_line(aes(y = pct_cum, group = 1)) + 
+  geom_point(aes(y = pct_cum)) +
+  labs(x = "Principal component", y = "Fraction variance explained")
+
+varscree_plot
+ggsave("~/Desktop/Smansoni_rnaseq/02_ANALYSIS/varscree_plot.pdf", height=7, width=7, units="in")
+
+varpc_scores <- var_pca$x
+varpc_scores <- varpc_scores %>% 
+  as_tibble(rownames = "sample")
+
+varpc_scores
+sample_info <- read_tsv("~/Desktop/STAR_stringtie/sample_info.txt")
+
+varpca_plot <- var_pca$x %>% 
+  as_tibble(rownames = "sample") %>% 
+  full_join(sample_info, by = "sample") %>% 
+  ggplot(aes(x=PC1, y=PC2)) +
+  geom_point(aes(colour=stage,shape=sex,alpha=20),size=5) +
+  scale_colour_discrete(breaks=c("Eggs","Miracidia","1d_Sporocysts","5d_Sporocysts","32d_Sporocysts","Cercariae","2d_Somules","Juveniles")) +
+  labs(y="PC2 (23.7%)",x="PC1 (36.6%)") +
+  theme (panel.grid.major=element_blank(),
+         panel.grid.minor=element_blank(),
+         panel.background=element_blank(),
+         legend.key = element_blank(),
+         axis.line = element_line(colour = "gray")) +
+  scale_alpha(guide = 'none')
+
+varpca_plot
+ggsave("~/Desktop/Smansoni_rnaseq/02_ANALYSIS/varPCA_plot.pdf", height=7, width=7, units="in")
+```
+
+```{r}
+write.table(variable, file = "variable.txt", sep = "\t",
+            row.names = TRUE, col.names = NA)
+```
+## Calculating distance between samples using 25% most variable genes
+```{r}
+head(variable)
+
+hclust_matrix <- variable %>% 
+  # transpose the matrix so genes are as columns
+  t() %>% 
+  # apply scaling to each column of the matrix (genes)
+  scale() %>% 
+  # transpose back so genes are as rows again
+  t() %>% 
+  as.matrix()
+rownames(hclust_matrix) <- variable[,1]
+
+gene_dist <- dist(hclust_matrix)
+gene_hclust <- hclust(gene_dist, method = "complete")
+
+# The default `plot()` function can be used to produce a simple dendrogram
+plot<-plot(gene_hclust, labels = FALSE)
+abline(h = 10, col = "brown", lwd = 2) # add horizontal line to illustrate cutting dendrogram
+plot
+tiff("~/Desktop/genehclust_plot.tiff", height=7, width=7, units="in",res=600)
+cutree(gene_hclust, k = 5)
+
+
+
+library(pheatmap)
+library(tidyr)
+library(viridis)
+variable<-as.data.frame(read.delim("~/Desktop/variable.txt", header=TRUE, row.names=1)) %>% 
+as.matrix()
+
+
+pheatmap(variable, border="NA" +
+         color=brewer.pal(9,"BuGn") +
+         cluster_rows=T, cluster_cols=T) +
+         clustering_distance_cols="euclidean" +
+         clustering_method="complete" +
+         show_colnames=FALSE +
+         fontsize = 3
+
+tiff("~/Desktop/test.tiff", units="in", width=8, height=10, res=600)
+l
