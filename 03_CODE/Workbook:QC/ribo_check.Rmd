@@ -1,0 +1,66 @@
+---
+title: "Ribosomal Gene Expression Check"
+author: "Sarah Kay Buddenborg"
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r environment, warning = FALSE, message = FALSE, results = FALSE}
+library(viridis)
+library(pheatmap)
+library(tidyr)
+library(tidyverse)
+
+variable25 <- as.data.frame(read.delim("~/Desktop/Smansoni_rnaseq/02_ANALYSIS/variable25.txt", header = TRUE, row.names = 1)) %>%
+  as.matrix()
+sample_info <- read.delim("~/Desktop/STAR_stringtie/sample_info.txt",header = TRUE,row.names = 1)
+annot <- select(sample_info, stage, sex)
+
+
+# Load the count matrix
+ribo_TPM <- as.data.frame(read.delim("~/Desktop/STAR_stringtie/ribo_TPM.txt", header = TRUE, row.names = 1)) %>%
+# Add one to all TPM values to avoid #NA values
+  mutate(across(where(is.numeric),~ .x + 1)) %>%
+# Log-transform the TPM+1 values
+  mutate(across(where(is.numeric),log2)) %>%
+# Coerce into a matrix
+  as.matrix()
+
+sample_info <- read.delim("~/Desktop/STAR_stringtie/sample_info.txt",header = TRUE,row.names = 1)
+annot <- select(sample_info, stage, sex)
+#Reorder stage and sex annotations
+annot$stage <- factor(annot$stage,
+ levels = c("Eggs","Miracidia","1d_Sporocysts","5d_Sporocysts","32d_Sporocysts","Cercariae","2d_Somules","Juveniles"))
+#Get HEX codes for palette used in heatmaps so sample colors are same in all plots
+stagecol <- c("#fde725","#a0da39","#4ac16d","#1fa187","#277f8e","#365c8d","#46327e","#440154")
+names(stagecol) <- levels(annot$stage)
+#Reorder sex annotations and specify colors
+annot$sex <- factor(annot$sex,levels = c("Male","Female","Mix"))
+sexcol <- c("goldenrod1","indianred3","honeydew4")
+names(sexcol) <- levels(annot$sex)
+# Add to a list, where names match those in factors dataframe
+anncol <- list(sex = sexcol,stage = stagecol)
+
+pheatmap(ribo_TPM, border="NA",
+  main="Log2(TPM) Ribosomal Genes",
+  cluster_rows = T,
+  cluster_cols = T,
+  clustering_distance_cols = "euclidean",
+  clustering_distance_rows = "euclidean",
+  show_rownames = FALSE,
+  treeheight_row = 0,
+  color=inferno(256),
+  angle_col=45,
+  fontsize_col=4,
+  annotation_col=annot,
+  annotation_colors=anncol
+  )
+
+```
+
+tiff("~/Desktop/Smansoni_rnaseq/02_ANALYSIS/RiboHeatmap.tiff", units = "in", width = 10, height = 8, res = 700)
+png("~/Desktop/Smansoni_rnaseq/02_ANALYSIS/RiboHeatmap.png", units = "in", width = 10, height = 8, res = 700)
+```

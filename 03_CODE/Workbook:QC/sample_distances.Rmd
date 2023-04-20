@@ -1,0 +1,113 @@
+---
+title: "Sample Distances"
+author: "Sarah Kay Buddenborg"
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Use matrix from earlier where Log2(TPM+1) and transposed so that rows=samples to calculate euclidean distances between samples
+
+```{r}
+library(tidyverse)
+library(viridis)
+library(pheatmap)
+library(gplots)
+library(dendsort)
+library(ggeasy)
+
+# Load the count matrix
+TPM <- read_tsv("~/Desktop/STAR_stringtie/TPM_matrix.txt") %>%
+# Add one to all TPM values to avoid #NA values
+  mutate(across(where(is.numeric),~ .x + 1)) %>%
+# Log-transform the TPM+1 values
+  mutate(across(where(is.numeric),log2)) %>%
+# Transpose the counts table so the "gene" column becomes the rownames
+  column_to_rownames("gene") %>%
+# Coerce into a matrix
+  as.matrix()
+
+all(is.finite(TPM))
+
+# Calculate coefficient of variation
+compute_cv <- function(x) sd(x) / mean(x)
+cv <- apply(TPM, 1, compute_cv)
+summary(cv)
+```
+
+# Select 25% of genes with highest CV
+
+```{r}
+cutoff25 <- 0.25
+summary(cv[rank(cv) / length(cv) > 1 - cutoff25])
+```
+
+```{r}
+variable25 <- TPM[rank(cv) / length(cv) > 1 - cutoff25, ]
+dim(variable25)
+```
+
+# Calculate sample distances for all genes
+
+```{r}
+# transpose the matrix so genes are as columns
+TPMtrans <- t(TPM)
+
+SampleDist <- as.matrix(dist(TPMtrans,method="euclidean",diag=TRUE,upper=TRUE),header=TRUE,rownames=1)
+
+sample_info <- read.delim("~/Desktop/STAR_stringtie/sample_info.txt",header = TRUE,row.names = 1)
+annot <- select(sample_info, stage, sex)
+#Reorder stage and sex annotations
+annot$stage <- factor(annot$stage,
+ levels = c("Eggs","Miracidia","1d_Sporocysts","5d_Sporocysts","32d_Sporocysts","Cercariae","2d_Somules","Juveniles"))
+#Get HEX codes for palette used in heatmaps so sample colors are same in all plots
+stagecol <- c("#fde725","#a0da39","#4ac16d","#1fa187","#277f8e","#365c8d","#46327e","#440154")
+names(stagecol) <- levels(annot$stage)
+#Reorder sex annotations and specify colors
+annot$sex <- factor(annot$sex,levels = c("Male","Female","Mix"))
+sexcol <- c("goldenrod1","indianred3","honeydew4")
+names(sexcol) <- levels(annot$sex)
+# Add to a list, where names match those in factors dataframe
+anncol <- list(sex = sexcol,stage = stagecol)
+
+heatmap<-pheatmap(SampleDist, border="NA",
+  main="Sample Distances \n All genes",
+  show_rownames = T,
+  show_colnames = T,
+  color=inferno(256),
+  angle_col=45,
+  fontsize_col=3,
+  fontsize_row=3,
+  annotation_col=annot,
+  annotation_colors=anncol
+  )
+
+tiff("~/Desktop/Smansoni_rnaseq/02_ANALYSIS/SampleDist.tiff", units = "in", width = 10, height = 8, res = 700)
+png("~/Desktop/Smansoni_rnaseq/02_ANALYSIS/SampleDist.png", units = "in", width = 10, height = 8, res = 700)
+```
+
+# Calculate sample distances for top 25% variable genes
+
+```{r}
+variable25trans <- t(variable25)
+
+sampleDist25 <- as.matrix(dist(variable25trans,method="euclidean",diag=TRUE,upper=TRUE),header=TRUE,rownames=1)
+
+pheatmap(sampleDist25, border="NA",
+#  main="Sample Distances \n Top 25% Variable Genes",
+  show_rownames = T,
+  show_colnames = T,
+  color=inferno(256),
+  angle_col=45,
+  fontsize_col=3,
+  fontsize_row=3,
+  annotation_col=annot,
+  annotation_colors=anncol
+)
+
+tiff("~/Desktop/Smansoni_rnaseq/02_ANALYSIS/SampleDist25.tiff", units = "in", width = 10, height = 8, res = 700)
+png("~/Desktop/Smansoni_rnaseq/02_ANALYSIS/SampleDist25.png", units = "in", width = 12, height = 8, res = 1000)
+
+```

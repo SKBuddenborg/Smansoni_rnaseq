@@ -1,0 +1,238 @@
+---
+title: "Gene variance across samples"
+author: "Sarah Kay Buddenborg"
+date: "`r Sys.Date()`"
+---
+  
+```{r}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Prepare environment
+
+```{r}
+library(ggplot2)
+library(viridis)
+library(RColorBrewer)
+library(dplyr)
+library(tidyverse)
+```
+
+```{r}
+TPMvar <- read_tsv("~/Desktop/STAR_stringtie/TPM_matrix.txt") %>%
+  # Add one to all TPM values to avoid #NA values
+  mutate(across(where(is.numeric),~ .x + 1)) %>%
+  # Log-transform the TPM+1 values
+  mutate(across(where(is.numeric),log2)) %>%
+  # Transpose the counts table so the "gene" column becomes the rownames
+  column_to_rownames("gene") %>%
+  # Coerce into a matrix
+  as.matrix()
+```
+
+
+```{r}
+# Calculate coefficient of variation for each gene across each sample group
+compute_cv <- function(x) sd(x) / mean(x)
+```
+  
+```{r}
+# Egg
+egg <- as.matrix(TPMvar[,1:5])
+egg.cv <- apply(egg, 1, compute_cv)
+eggcv.df <- as.data.frame(egg.cv)
+summary(egg.cv)
+```
+
+```{r}
+# Miracidia
+mira <- as.matrix(TPMvar[,6:10])
+mira.cv <- apply(mira, 1, compute_cv)
+miracv.df <- as.data.frame(mira.cv)
+summary(mira.cv)
+```
+
+```{r}
+# 1d sporocysts
+sporo1d <- as.matrix(TPMvar[,11:15])
+sporo1d.cv <- apply(sporo1d, 1, compute_cv)
+sporo1dcv.df <- as.data.frame(sporo1d.cv)
+summary(sporo1d.cv)
+```
+
+```{r}
+# 5d sporocysts
+sporo5d <- as.matrix(TPMvar[,16:20])
+sporo5d.cv <- apply(sporo5d, 1, compute_cv)
+sporo5dcv.df <- as.data.frame(sporo5d.cv)
+summary(sporo5d.cv)
+```
+
+```{r}
+# 32d sporocysts
+sporo32d <- as.matrix(TPMvar[,21:25])
+sporo32d.cv <- apply(sporo32d, 1, compute_cv)
+sporo32dcv.df <- as.data.frame(sporo32d.cv)
+summary(sporo32d.cv)
+```
+
+```{r}
+# Cercariae
+cerc <- as.matrix(TPMvar[,26:30])
+cerc.cv <- apply(cerc, 1, compute_cv)
+cerccv.df <- as.data.frame(cerc.cv)
+summary(cerc.cv)
+```
+
+```{r}
+# 2d somule
+som2d <- as.matrix(TPMvar[,31:35])
+som2d.cv <- apply(som2d, 1, compute_cv)
+som2dcv.df <- as.data.frame(som2d.cv)
+summary(som2d.cv)
+```
+
+```{r}
+# F 32d sporocysts
+Fsporo32d <- as.matrix(TPMvar[,36:40])
+Fsporo32d.cv <- apply(Fsporo32d, 1, compute_cv)
+Fsporo32dcv.df <- as.data.frame(Fsporo32d.cv)
+summary(Fsporo32d.cv)
+```
+
+```{r}
+# F cercariae
+Fcerc <- as.matrix(TPMvar[,41:45])
+Fcerc.cv <- apply(Fcerc, 1, compute_cv)
+Fcerccv.df <- as.data.frame(Fcerc.cv)
+summary(Fcerc.cv)
+```
+
+```{r}
+# F 2d somules
+Fsoms2d <- as.matrix(TPMvar[,46:50])
+Fsoms2d.cv <- apply(Fsoms2d, 1, compute_cv)
+Fsoms2dcv.df <- as.data.frame(Fsoms2d.cv)
+summary(Fsoms2d.cv)
+```
+
+```{r}
+# M 32d sporocysts
+Msporo32d <- as.matrix(TPMvar[,51:55])
+Msporo32d.cv <- apply(Msporo32d, 1, compute_cv)
+Msporo32dcv.df <- as.data.frame(Msporo32d.cv)
+summary(Msporo32d.cv)
+```
+
+```{r}
+# M cercariae
+Mcerc <- as.matrix(TPMvar[,56:60])
+Mcerc.cv <- apply(Mcerc, 1, compute_cv)
+Mcerccv.df <- as.data.frame(Mcerc.cv)
+summary(Mcerc.cv)
+```
+
+```{r}
+# M 2d somules
+Msoms2d <- as.matrix(TPMvar[,61:65])
+Msoms2d.cv <- apply(Msoms2d, 1, compute_cv)
+Msoms2dcv.df <- as.data.frame(Msoms2d.cv)
+summary(Msoms2d.cv)
+```
+
+```{r}
+# M juvenile
+Mjuv <- as.matrix(TPMvar[,66:70])
+Mjuv.cv <- apply(Mjuv, 1, compute_cv)
+Mjuvcv.df <- as.data.frame(Mjuv.cv)
+summary(Mjuv.cv)
+```
+
+```{r}
+# F juvenile
+Fjuv <- as.matrix(TPMvar[,71:65])
+Fjuv.cv <- apply(Fjuv, 1, compute_cv)
+Fjuvcv.df <- as.data.frame(Fjuv.cv)
+summary(Fjuv.cv)
+```
+
+```{r}
+# Put all data frames into a list
+df_list <- list(eggcv.df,miracv.df,sporo1dcv.df,sporo5dcv.df,sporo32dcv.df,cerccv.df,som2dcv.df,Fsporo32dcv.df,Fcerccv.df,Fsoms2dcv.df,Msporo32dcv.df,Mcerccv.df,Msoms2dcv.df,Mjuvcv.df,Fjuvcv.df)
+
+# Merge all data frames in list
+cvs.df <- Reduce(function(x, y) merge(x, y, all=TRUE), df_list) %>%
+  as.data.frame()
+```
+
+```{r}
+write.table(eggcv.df, "~/Desktop/eggcv.txt", row.names=TRUE, quote=FALSE, sep = "\t") 
+write.table(miracv.df, "~/Desktop/miracv.txt", row.names=TRUE, quote=FALSE, sep = "\t") 
+write.table(sporo1dcv.df, "~/Desktop/sporo1dcv.txt", row.names=TRUE, quote=FALSE, sep = "\t") 
+write.table(sporo5dcv.df, "~/Desktop/sporo5dcv.txt", row.names=TRUE, quote=FALSE, sep = "\t") 
+write.table(sporo32dcv.df, "~/Desktop/sporo32dcv.txt", row.names=TRUE, quote=FALSE, sep = "\t") 
+write.table(cerccv.df, "~/Desktop/cerccv.txt", row.names=TRUE, quote=FALSE, sep = "\t") 
+write.table(som2dcv.df, "~/Desktop/som2dcv.txt", row.names=TRUE, quote=FALSE, sep = "\t") 
+write.table(Fsporo32dcv.df, "~/Desktop/Fsporo32dcv.txt", row.names=TRUE, quote=FALSE, sep = "\t") 
+write.table(Fcerccv.df, "~/Desktop/Fcerccv.txt", row.names=TRUE, quote=FALSE, sep = "\t") 
+write.table(Fsoms2dcv.df, "~/Desktop/Fsoms2dcv.txt", row.names=TRUE, quote=FALSE, sep = "\t") 
+write.table(Msporo32dcv.df, "~/Desktop/Msporo32dcv.txt", row.names=TRUE, quote=FALSE, sep = "\t") 
+write.table(Mcerccv.df, "~/Desktop/Mcerccv.txt", row.names=TRUE, quote=FALSE, sep = "\t") 
+write.table(Msoms2dcv.df, "~/Desktop/Msoms2dcv.txt", row.names=TRUE, quote=FALSE, sep = "\t") 
+write.table(Mjuvcv.df, "~/Desktop/Mjuvcv.txt", row.names=TRUE, quote=FALSE, sep = "\t") 
+write.table(Fjuvcv.df, "~/Desktop/Fjuvcv.txt", row.names=TRUE, quote=FALSE, sep = "\t") 
+```
+
+```{r}
+cvs <- read_tsv("~/Desktop/cvs.df.txt") %>%
+  as.data.frame()
+
+data <- tidyr::gather(cvs,"stage","variance",2:16) %>%
+  as.data.frame()
+
+ggplot(data) +
+    geom_point(aes(x=gene[order(variance)],y=variance,color=stage)) +
+    ggtitle("Variance per gene") +
+    ylab("Mean variance") +
+    xlab("Gene (ordered by variance)")
+
+
+mira <- read_tsv("~/Desktop/miracv.txt") %>%
+  as.data.frame()
+sporo32d <- read_tsv("~/Desktop/sporo32dcv.txt") %>%
+  as.data.frame()
+egg <- read_tsv("~/Desktop/eggcv.txt") %>%
+  as.data.frame()
+cerc <- read_tsv("~/Desktop/cerccv.txt") %>%
+  as.data.frame()
+som2d <- read_tsv("~/Desktop/som2dcv.txt") %>%
+  as.data.frame()
+sporo1d <- read_tsv("~/Desktop/sporo1dcv.txt") %>%
+  as.data.frame()
+sporo5d <- read_tsv("~/Desktop/sporo5dcv.txt") %>%
+  as.data.frame()
+
+mira.na <- na.omit(mira)
+sporo32d.na <- na.omit(sporo32d)
+egg.na <- na.omit(egg)
+cerc.na <- na.omit(cerc)
+som2d.na <- na.omit(som2d)
+sporo1d.na <- na.omit(sporo1d)
+sporo5d.na <- na.omit(sporo5d)
+
+kd.mira <- density(x=mira.na$mira.cv)
+kd.sporo32d <- density(x=sporo32d.na$sporo32d)
+kd.egg <- density(x=egg.na$egg.cv)
+kd.cerc <- density(x=cerc.na$cerc.cv)
+kd.som2d <- density(x=som2d.na$som2d.cv)
+kd.sporo1d <- density(x=sporo1d.na$sporo1d.cv)
+kd.sporo5d <- density(x=sporo5d.na$sporo5d.cv)
+
+par(mfrow=c(3,3))
+plot(kd.mira, col='darkgreen', lwd=2)
+plot(kd.sporo32d, col='blue', lwd=2)
+plot(kd.egg, col='pink', lwd=2)
+plot(kd.cerc, col='red', lwd=2)
+plot(kd.som2d, col='yellow', lwd=2)
+plot(kd.sporo1d, col='orange', lwd=2)
+plot(kd.sporo5d, col='purple', lwd=2)
